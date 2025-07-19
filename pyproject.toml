@@ -1,0 +1,11 @@
+[project]
+name = "deltalake_test"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "deltalake>=1.1.0",
+    "pandera[io,pandas,polars]>=0.25.0",
+    "pyarrow>=21.0.0",
+]
