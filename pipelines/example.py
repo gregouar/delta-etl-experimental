@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Sequence, override
-from modules.pipeline import Pipeline, DataFrame,BaseTable
+from modules.pipeline import Pipeline,BaseTable
 import pandera.polars as pa
-import polars
+import polars as pl
 
 import datetime as dt
 
@@ -36,9 +36,9 @@ class ExamplePipeline(Pipeline, models=(ExampleModel,)):
         self,
         filename: str,
         file_content: bytes,
-    ) -> Sequence[DataFrame[ExampleModel]]:
+    ) -> Sequence[pl.DataFrame]:
         """Transform."""
-        dataframe = polars.read_csv(file_content)
+        dataframe = pl.read_csv(file_content)
         dataframe = dataframe.rename(
             {
                 "Customer Id": "customer_id",
@@ -47,4 +47,4 @@ class ExamplePipeline(Pipeline, models=(ExampleModel,)):
                 "Subscription Date": "subscription_date",
             },
         )
-        return [ExampleModel.validate(dataframe)]
+        return [dataframe]

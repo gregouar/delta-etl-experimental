@@ -10,13 +10,14 @@ class BaseModel(pa.DataFrameModel):
     """Base pandera model with default configuration."""
 
 
-BaseModel.Config.strict = "filter"
+BaseModel.Config.strict = "filter" # Remove extra columns on validation
+BaseModel.Config.coerce = True # Parse types on validation
 
 
 class BaseTable(BaseModel):
     """BaseModel for enriched tables with ETL metadata."""
 
-    file_id: Optional[str]
+    file_name: Optional[str]
 
 
 def create_delta_table(

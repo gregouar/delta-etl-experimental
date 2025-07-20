@@ -13,9 +13,12 @@ _TABLE_PATH = "local/silver/meta_processed_files"
 class MetaProcessedFile(BaseModel):
     """Table with list of processed from files."""
 
-    file_id: str
+    file_name: str
+    pipeline_name: str
+
     file_hash: bytes = pa.Field()
     # TODO: How to have tz dt? Should we have custom type with nice conversion?
+    # TODO: try polars datetime or pandas
     processed_at: dt.datetime = pa.Field(
         description="When the file was processed from bronze to silver, in UTC."
     )
@@ -26,23 +29,25 @@ def init_table() -> None:
         _TABLE_PATH,
         MetaProcessedFile,
         exists_ok=True,
+        partition_by=[MetaProcessedFile.pipeline_name],
     )
 
 
-def add_processed_file(file_id: str, file_hash: bytes) -> None:
+def add_processed_file(pipeline_name: str, file_name: str, file_hash: bytes) -> None:
     (
         DataFrame[MetaProcessedFile](
             {
-                "file_id": [file_id],
-                "file_hash": [file_hash],
-                "processed_at": [dt.datetime.now(dt.UTC).replace(tzinfo=None)],
+                MetaProcessedFile.pipeline_name: [pipeline_name],
+                MetaProcessedFile.file_name: [file_name],
+                MetaProcessedFile.file_hash: [file_hash],
+                MetaProcessedFile.processed_at: [dt.datetime.now(dt.UTC).replace(tzinfo=None)],
             }
         )
         .write_delta(
             _TABLE_PATH,
             mode="merge",
             delta_merge_options={
-                "predicate": "s.file_id = t.file_id",
+                "predicate": "s.file_name = t.file_name AND s.pipeline_name = t.pipeline_name",
                 "source_alias": "s",
                 "target_alias": "t",
             },
@@ -52,4 +57,4 @@ def add_processed_file(file_id: str, file_hash: bytes) -> None:
         .execute()
     )
 
-    deltalake.DeltaTable(_TABLE_PATH).optimize.z_order(["file_id"])
+    deltalake.DeltaTable(_TABLE_PATH).optimize.z_order([MetaProcessedFile.file_name])
