@@ -27,7 +27,7 @@ class MetaProcessedFile(BaseModel):
 def init_table() -> None:
     delta.create_delta_table(
         _TABLE_PATH,
-        MetaProcessedFile,
+        MetaProcessedFile.to_schema(),
         exists_ok=True,
         partition_by=[MetaProcessedFile.pipeline_name],
     )
@@ -40,14 +40,19 @@ def add_processed_file(pipeline_name: str, file_name: str, file_hash: bytes) -> 
                 MetaProcessedFile.pipeline_name: [pipeline_name],
                 MetaProcessedFile.file_name: [file_name],
                 MetaProcessedFile.file_hash: [file_hash],
-                MetaProcessedFile.processed_at: [dt.datetime.now(dt.UTC).replace(tzinfo=None)],
+                MetaProcessedFile.processed_at: [
+                    dt.datetime.now(dt.UTC).replace(tzinfo=None)
+                ],
             }
         )
         .write_delta(
             _TABLE_PATH,
             mode="merge",
             delta_merge_options={
-                "predicate": "s.file_name = t.file_name AND s.pipeline_name = t.pipeline_name",
+                "predicate": (
+                    f"s.{MetaProcessedFile.file_name} = t.{MetaProcessedFile.file_name} "
+                    f"AND s.{MetaProcessedFile.pipeline_name} = t.{MetaProcessedFile.pipeline_name}"
+                ),
                 "source_alias": "s",
                 "target_alias": "t",
             },

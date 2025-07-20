@@ -1,6 +1,8 @@
 from hashlib import md5
 from typing import Sequence
-from modules.delta import BaseTable
+
+import pandera.polars as pa
+from modules.delta import BaseModel
 import abc
 import deltalake
 from modules import delta, datalake, processed_files
@@ -11,12 +13,10 @@ import polars as pl
 class Pipeline(abc.ABC):
     """Base abstract class for ETL pipelines."""
 
-    _models: tuple[type[BaseTable], ...]
-    _meta_models: tuple[type[BaseTable], ...]
+    _models: tuple[type[BaseModel], ...]
 
-    def __init_subclass__(cls, models: tuple[type[BaseTable], ...]) -> None:
+    def __init_subclass__(cls, models: tuple[type[BaseModel], ...]) -> None:
         cls._models = models
-        # cls._meta_models = (model.with_columns(file_name) for model in models)
 
     @property
     def name(self) -> str:
@@ -24,11 +24,12 @@ class Pipeline(abc.ABC):
 
     def run(self) -> None:
         self.extract()
+        self.init_tables()
         self.transform_and_load()
 
     def transform_and_load(self) -> None:
         """Glob datalake, and transform and load to deltalake any new file."""
-        self.init_tables()
+        # TODO: Only process new files
         for file_name in datalake.glob_folder(self.name):
             file_content = datalake.download_file(self.name, file_name)
 
@@ -56,7 +57,7 @@ class Pipeline(abc.ABC):
     def validate_models(
         self,
         dataframes: Sequence[pl.DataFrame],
-    ) -> Sequence[DataFrame[BaseTable]]:
+    ) -> Sequence[DataFrame[BaseModel]]:
         """Validate dataframes against pandera models."""
         return [
             dataframe.pipe(model.validate)
@@ -70,7 +71,7 @@ class Pipeline(abc.ABC):
     def load_dataframes(
         self,
         file_name: str,
-        dataframes: Sequence[DataFrame[BaseTable]],
+        dataframes: Sequence[DataFrame[BaseModel]],
     ) -> None:
         """Load from datalake to deltalake."""
         for model, dataframe in zip(self._models, dataframes):
@@ -88,7 +89,7 @@ class Pipeline(abc.ABC):
             table_path = f"local/silver/{model.__name__}"
             delta.create_delta_table(
                 table_path,
-                model,
+                self.add_meta_to_schema(model.to_schema()),
                 exists_ok=True,
                 # TODO: Allow more control over partitions
                 partition_by=["file_name"],
@@ -108,3 +109,7 @@ class Pipeline(abc.ABC):
 
             # No need since we use already partitions
             # deltalake.DeltaTable(table_path).optimize.z_order(["file_name"])
+
+    @classmethod
+    def add_meta_to_schema(cls, schema: pa.DataFrameSchema) -> pa.DataFrameSchema:
+        return schema.add_columns({"file_name": pa.Column(str)})

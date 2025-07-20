@@ -4,6 +4,7 @@ import pandera.polars as pa
 # from pandera.api.pandas.model_config import BaseConfig
 import deltalake
 import pyarrow
+import polars as pl
 
 
 class BaseModel(pa.DataFrameModel):
@@ -14,15 +15,15 @@ BaseModel.Config.strict = "filter" # Remove extra columns on validation
 BaseModel.Config.coerce = True # Parse types on validation
 
 
-class BaseTable(BaseModel):
-    """BaseModel for enriched tables with ETL metadata."""
-
-    file_name: Optional[str]
+def empty_dataframe(schema: pa.DataFrameSchema) -> pl.DataFrame:
+    """Generate empty dataframe from schema."""
+    return schema.coerce_dtype(pl.DataFrame(schema=[*schema.columns]))
 
 
 def create_delta_table(
     table_path: str,
-    pandera_model: type[pa.DataFrameModel],
+    pandera_schema: pa.DataFrameSchema,
+    # pandera_model: type[pa.DataFrameModel],
     *,
     partition_by: list[str] | str | None = None,
     exists_ok: bool = False,
@@ -33,8 +34,9 @@ def create_delta_table(
     create the delta table, but rather create a polars dataframe, which is then
     converted to delta table. The polars dataframe doesn't carry the metadata.
     """
-    pyarrow_table: pyarrow.Table = pandera_model.empty().to_arrow()
-    pandera_schema = pandera_model.to_schema()
+    pyarrow_table = empty_dataframe(pandera_schema).to_arrow()
+    # pyarrow_table: pyarrow.Table = pandera_model.empty().to_arrow()
+    # pandera_schema = pandera_model.to_schema()
 
     deltalake.DeltaTable.create(
         table_path,

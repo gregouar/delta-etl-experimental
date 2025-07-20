@@ -1,13 +1,13 @@
 from pathlib import Path
 from typing import Sequence, override
-from modules.pipeline import Pipeline,BaseTable
+from modules.pipeline import Pipeline,BaseModel
 import pandera.polars as pa
 import polars as pl
 
 import datetime as dt
 
 
-class ExampleModel(BaseTable):
+class ExampleModel(BaseModel):
     """Customers from source."""
 
     customer_id: str = pa.Field(
