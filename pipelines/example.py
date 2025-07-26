@@ -3,6 +3,7 @@ from typing import Sequence, override
 from modules.pipeline import Pipeline,BaseModel
 import pandera.polars as pa
 import polars as pl
+from pandera.typing.polars import Series
 
 import datetime as dt
 
@@ -10,13 +11,13 @@ import datetime as dt
 class ExampleModel(BaseModel):
     """Customers from source."""
 
-    customer_id: str = pa.Field(
+    customer_id: Series[str] = pa.Field(
         str_length={"min_value": 15, "max_value":15},
         description="Unique customer id, provided by source.",
     )
-    first_name: str = pa.Field(description="Customer first name.")
-    last_name: str = pa.Field(description="Customer last name.")
-    subscription_date: dt.date = pa.Field(
+    first_name: Series[str] = pa.Field(description="Customer first name.")
+    last_name: Series[str] = pa.Field(description="Customer last name.")
+    subscription_date: Series[dt.date] = pa.Field(
         description="Date when the customer subscribed to the source service.",
     )
 
@@ -40,10 +41,10 @@ class ExamplePipeline(Pipeline, models=(ExampleModel,)):
         dataframe = pl.read_csv(file_content)
         dataframe = dataframe.rename(
             {
-                "Customer Id": "customer_id",
-                "First Name": "first_name",
-                "Last Name": "last_name",
-                "Subscription Date": "subscription_date",
+                "Customer Id": ExampleModel.customer_id,
+                "First Name": ExampleModel.first_name,
+                "Last Name": ExampleModel.last_name,
+                "Subscription Date": ExampleModel.subscription_date,
             },
         )
         return [dataframe]

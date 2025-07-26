@@ -62,4 +62,9 @@ def add_processed_file(pipeline_name: str, file_name: str, file_hash: bytes) -> 
         .execute()
     )
 
-    deltalake.DeltaTable(_TABLE_PATH).optimize.z_order([MetaProcessedFile.file_name])
+    deltalake.DeltaTable(_TABLE_PATH).optimize.z_order(
+        [
+            MetaProcessedFile.file_name,
+            MetaProcessedFile.pipeline_name,
+        ],
+    )

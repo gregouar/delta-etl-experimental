@@ -105,13 +105,10 @@ class Pipeline(abc.ABC):
                 # TODO: remove
                 enforce_retention_duration=False,  # bypasses the 168-hour check FOR TESTING
             )
-
             # Do we want that?
             deltalake.DeltaTable(table_path).optimize.compact()
 
-            # No need since we use already partitions
-            # deltalake.DeltaTable(table_path).optimize.z_order(["file_name"])
-
     @classmethod
     def add_meta_to_schema(cls, schema: pa.DataFrameSchema) -> pa.DataFrameSchema:
+        """Add metadata columns to the table schema."""
         return schema.add_columns({FILENAME_COLUMN: pa.Column(str)})
