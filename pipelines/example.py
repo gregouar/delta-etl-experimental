@@ -11,14 +11,13 @@ class ExampleModel(BaseModel):
     """Customers from source."""
 
     customer_id: str = pa.Field(
-        checks=[pa.Check.str_length(min_value=15, max_value=15)],
+        str_length={"min_value": 15, "max_value":15},
         description="Unique customer id, provided by source.",
     )
     first_name: str = pa.Field(description="Customer first name.")
     last_name: str = pa.Field(description="Customer last name.")
     subscription_date: dt.date = pa.Field(
         description="Date when the customer subscribed to the source service.",
-        coerce=True,
     )
 
 
