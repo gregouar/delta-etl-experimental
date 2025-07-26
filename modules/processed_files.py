@@ -1,5 +1,6 @@
 import deltalake
 from modules import delta
+import polars as pl
 from modules.delta import BaseModel
 from pandera.typing.polars import DataFrame
 import datetime as dt
@@ -16,7 +17,11 @@ class MetaProcessedFile(BaseModel):
     file_name: str
     pipeline_name: str
 
-    file_hash: bytes = pa.Field()
+    # file_hash: bytes = pa.Field()
+    file_version: dt.datetime = pa.Field(
+        description="Version of original file extract, as a datetime in UTC.",
+    )
+
     # TODO: How to have tz dt? Should we have custom type with nice conversion?
     # TODO: try polars datetime or pandas
     processed_at: dt.datetime = pa.Field(
@@ -33,13 +38,17 @@ def init_table() -> None:
     )
 
 
-def add_processed_file(pipeline_name: str, file_name: str, file_hash: bytes) -> None:
+def add_processed_file(
+    pipeline_name: str,
+    file_name: str,
+    file_version: dt.datetime,
+) -> None:
     (
         DataFrame[MetaProcessedFile](
             {
                 MetaProcessedFile.pipeline_name: [pipeline_name],
                 MetaProcessedFile.file_name: [file_name],
-                MetaProcessedFile.file_hash: [file_hash],
+                MetaProcessedFile.file_version: [file_version],
                 MetaProcessedFile.processed_at: [
                     dt.datetime.now(dt.UTC).replace(tzinfo=None)
                 ],
@@ -62,9 +71,20 @@ def add_processed_file(pipeline_name: str, file_name: str, file_hash: bytes) -> 
         .execute()
     )
 
-    deltalake.DeltaTable(_TABLE_PATH).optimize.z_order(
-        [
-            MetaProcessedFile.file_name,
-            MetaProcessedFile.pipeline_name,
-        ],
+    deltalake.DeltaTable(_TABLE_PATH).optimize.z_order([MetaProcessedFile.file_name])
+
+
+def get_file_version(pipeline_name: str, file_name: str) -> dt.datetime | None:
+    """Get last version of processed file in deltalake."""
+    r = (
+        pl.scan_delta(_TABLE_PATH)
+        .filter(
+            pl.col(MetaProcessedFile.pipeline_name) == pipeline_name,
+            pl.col(MetaProcessedFile.file_name) == file_name,
+        )
+        .select(MetaProcessedFile.file_version)
+        .first()
+        .collect()
     )
+
+    return r.item() if r.shape == (1,1) else None

@@ -1,4 +1,4 @@
-from hashlib import md5
+from pathlib import Path
 from typing import Sequence
 
 import pandera.polars as pa
@@ -8,9 +8,10 @@ import deltalake
 from modules import delta, datalake, processed_files
 from pandera.typing.polars import DataFrame
 import polars as pl
-
+import datetime as dt
 
 FILENAME_COLUMN = "file_name"
+
 
 class Pipeline(abc.ABC):
     """Base abstract class for ETL pipelines."""
@@ -33,16 +34,24 @@ class Pipeline(abc.ABC):
         """Glob datalake, and transform and load to deltalake any new file."""
         # TODO: Only process new files
         for file_name in datalake.glob_folder(self.name):
+            # TODO: Have file_hash and version as metadata in filename blabla
+            # file_hash = md5(file_content).digest()
+            file_version = dt.datetime.fromtimestamp(
+                (Path("local/bronze") / self.name / file_name).stat().st_mtime
+            )
+
+            # Current file version already processed
+            file_version_in_db = processed_files.get_file_version(self.name, file_name)
+            print(file_version_in_db)
+            if file_version_in_db and file_version <= file_version_in_db:
+                continue
+
             file_content = datalake.download_file(self.name, file_name)
-
-            # TODO: Have file_hash as metadata in filename blabla
-            file_hash = md5(file_content).digest()
-
             self.load_dataframes(
                 file_name,
                 self.validate_models(self.transform_file(file_name, file_content)),
             )
-            processed_files.add_processed_file(self.name, file_name, file_hash)
+            processed_files.add_processed_file(self.name, file_name, file_version)
 
     @abc.abstractmethod
     def extract(self) -> None:
@@ -79,7 +88,9 @@ class Pipeline(abc.ABC):
         for model, dataframe in zip(self._models, dataframes):
             table_path = f"local/silver/{model.__name__}"
             # This is for our SCD0, SCD1 would need mode="merge"
-            dataframe.with_columns(pl.lit(file_name).alias(FILENAME_COLUMN)).write_delta(
+            dataframe.with_columns(
+                pl.lit(file_name).alias(FILENAME_COLUMN)
+            ).write_delta(
                 table_path,
                 mode="overwrite",
                 delta_write_options={"predicate": f"{FILENAME_COLUMN} = '{file_name}'"},
