@@ -42,7 +42,6 @@ class Pipeline(abc.ABC):
 
             # Current file version already processed
             file_version_in_db = processed_files.get_file_version(self.name, file_name)
-            print(file_version_in_db)
             if file_version_in_db and file_version <= file_version_in_db:
                 continue
 
@@ -63,7 +62,10 @@ class Pipeline(abc.ABC):
         filename: str,
         file_content: bytes,
     ) -> Sequence[pl.DataFrame]:
-        """Transform."""
+        """Transform from raw file content to dataframe.
+        
+        Doesn't need to validate against models, as it is done automatically after.
+        """
 
     def validate_models(
         self,
@@ -89,7 +91,7 @@ class Pipeline(abc.ABC):
             table_path = f"local/silver/{model.__name__}"
             # This is for our SCD0, SCD1 would need mode="merge"
             dataframe.with_columns(
-                pl.lit(file_name).alias(FILENAME_COLUMN)
+                pl.lit(file_name).alias(FILENAME_COLUMN),
             ).write_delta(
                 table_path,
                 mode="overwrite",
