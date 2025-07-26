@@ -1,5 +1,5 @@
-from typing import Optional
 import pandera.polars as pa
+import typing
 
 # from pandera.api.pandas.model_config import BaseConfig
 import deltalake
@@ -17,7 +17,7 @@ BaseModel.Config.coerce = True # Parse types on validation
 
 def empty_dataframe(schema: pa.DataFrameSchema) -> pl.DataFrame:
     """Generate empty dataframe from schema."""
-    return schema.coerce_dtype(pl.DataFrame(schema=[*schema.columns]))
+    return typing.cast(pl.DataFrame, schema.coerce_dtype(pl.DataFrame(schema=[*schema.columns])))
 
 
 def create_delta_table(

@@ -10,6 +10,8 @@ from pandera.typing.polars import DataFrame
 import polars as pl
 
 
+FILENAME_COLUMN = "file_name"
+
 class Pipeline(abc.ABC):
     """Base abstract class for ETL pipelines."""
 
@@ -77,10 +79,10 @@ class Pipeline(abc.ABC):
         for model, dataframe in zip(self._models, dataframes):
             table_path = f"local/silver/{model.__name__}"
             # This is for our SCD0, SCD1 would need mode="merge"
-            dataframe.with_columns(pl.lit(file_name).alias("file_name")).write_delta(
+            dataframe.with_columns(pl.lit(file_name).alias(FILENAME_COLUMN)).write_delta(
                 table_path,
                 mode="overwrite",
-                delta_write_options={"predicate": f"file_name = '{file_name}'"},
+                delta_write_options={"predicate": f"{FILENAME_COLUMN} = '{file_name}'"},
             )
 
     def init_tables(self) -> None:
@@ -92,7 +94,7 @@ class Pipeline(abc.ABC):
                 self.add_meta_to_schema(model.to_schema()),
                 exists_ok=True,
                 # TODO: Allow more control over partitions
-                partition_by=["file_name"],
+                partition_by=[FILENAME_COLUMN],
             )
 
             # TODO: Decide where and when to do these kind of things, we probably
@@ -112,4 +114,4 @@ class Pipeline(abc.ABC):
 
     @classmethod
     def add_meta_to_schema(cls, schema: pa.DataFrameSchema) -> pa.DataFrameSchema:
-        return schema.add_columns({"file_name": pa.Column(str)})
+        return schema.add_columns({FILENAME_COLUMN: pa.Column(str)})

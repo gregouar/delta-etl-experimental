@@ -11,7 +11,7 @@ class ExampleModel(BaseModel):
     """Customers from source."""
 
     customer_id: str = pa.Field(
-        # checks=pa.Check.str_length(min_value=15, max_value=15),
+        checks=[pa.Check.str_length(min_value=15, max_value=15)],
         description="Unique customer id, provided by source.",
     )
     first_name: str = pa.Field(description="Customer first name.")
